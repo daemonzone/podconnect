@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# Script Name: podconnect
+#
+# Author: Davide Villani
+# Date:   January 15, 2024
+#
+# Description: Quick and easy command-line tool to explore Kubernetes pods and shell connect to them
+#
+# Usage: 
+#   ./podconnect [options] arguments
+#
+# Options:
+#   -h, --help        Display this help message
+#   -v, --version     Display the script version
+#
+# Dependencies:
+#   - kubectl
+#
+# Notes:
+#   Additional notes or instructions for users
+#
+# License:
+#   This script is licensed under the GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007 license.
+#
+# Version:
+#   0.1
+#
+
+KUBECTL=$(which kubectl)
+
+# Namespaces list
+function namespaces() {
+    $KUBECTL get namespaces
+}
+
+# Pods of the current_namespace
+function pods() {
+	echo "Namespace: $1"	
+    $KUBECTL get pods --namespace "$1"
+}
+
+# Connect to pod
+function connect() {
+    $KUBECTL exec --stdin --tty $2 --namespace $1 -- /bin/bash      
+}
+
+current_namespace=""
+current_pod=""
+
+# Main loop
+while true; do
+	# Interactive
+	if [ $# -eq 0 ]; then
+		
+		if [ "$current_namespace" == "" ] ; then 
+			namespaces
+    		read -p "Choose a namespace: " current_namespace
+    	elif [ "$current_pod" == "" ] ; then
+			pods $current_namespace
+    		read -p "Choose a pod to connect to: " current_pod
+    	else
+    		connect $current_namespace $current_pod
+    		break
+    	fi
+	fi
+done
