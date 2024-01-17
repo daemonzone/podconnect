@@ -37,8 +37,14 @@ function namespaces() {
 # Pods of the current_namespace
 function pods() {
 	echo "Namespace: $1"	
-    pods=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}')    
-    echo "${pods}"
+    pods=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}')
+    if [ "$pods" == "" ] ; then 
+    	echo ""
+    	current_namespace=""
+    	continue
+    else
+    	echo "${pods}"
+    fi
 }
 
 # Connect to pod
@@ -49,7 +55,7 @@ function connect() {
     	$KUBECTL exec --stdin --tty $current_pod --namespace $1 -- /bin/bash
     	connected=1
     else
-    	echo "Sorry, I cannot match a specific pod, please retry"
+    	echo "Sorry, I cannot match a specific pod, please retry\n"
     	current_pod=""
     fi
 }
@@ -69,6 +75,7 @@ while true; do
     		read -p "Choose a namespace: " current_namespace
     	elif [ "$current_pod" == "" ] ; then
 			pods $current_namespace
+			echo ""
     		read -p "Choose a pod to connect to: " current_pod
     	else
     		if [ "$connected" == "" ]; then
