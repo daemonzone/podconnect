@@ -24,7 +24,7 @@
 #   This script is licensed under the GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007 license.
 #
 # Version:
-#   0.1
+#   0.3 - 2024-02-01
 #
 
 KUBECTL=$(which kubectl)
@@ -49,11 +49,26 @@ function pods() {
 
 # Connect to pod
 function connect() {
-    pods_num=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}' | grep -c $2)
-    if [ $pods_num -eq 1 ]; then 
+	if [ -n "$2" ] ; then
+    	pods_num=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}' | grep -c $2)
+	fi
+    if [ -n "$pods_num" ] && [ $pods_num -eq 1 ]; then 
     	current_pod=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}' | grep $2)
-    	$KUBECTL exec --stdin --tty $current_pod --namespace $1 -- /bin/bash
-    	connected=1
+    	
+    	case "$command" in
+        "exec")
+			$KUBECTL exec --stdin --tty $current_pod --namespace $1 -- /bin/bash
+	    	connected=1
+            ;;
+        "logs")
+			$KUBECTL logs -f --tail=2000 $current_pod --namespace $1
+    		connected=1
+            ;;
+        *)
+            echo "Unknown command: $command. Please provide a valid command (\`podconnect -h\` for more info)"
+            exit 1
+            ;;
+    	esac
     else
     	echo "Sorry, I cannot match a specific pod, please retry\n"
     	current_pod=""
@@ -61,6 +76,7 @@ function connect() {
 }
 
 connected=""
+command="exec"
 current_namespace=""
 current_pod=""
 pods=""
@@ -84,6 +100,29 @@ while true; do
     			break
     		fi 
     	fi
+    else
+    	cmd=$1
+
+    case "$cmd" in
+        "-h" | "--help")
+            echo "PodConnect - Easily connect to your cluster Pods\n"
+            echo "usage: podconnect [logs|sh] [<namespace>] [<pod:pattern*>]"
+            ;;
+        "logs")
+			command="logs"
+			connect $2 $3
+            ;;
+        "sh")
+			command="exec"
+			connect $2 $3
+            ;;
+        *)
+            echo "Unknown command: $command. Please provide a valid command (\`podconnect -h\` for more info)"
+            exit 1
+            ;;
+    esac
+
+    exit 0
 	fi
 done
 
