@@ -24,7 +24,7 @@
 #   This script is licensed under the GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007 license.
 #
 # Version:
-#   0.3 - 2024-02-01
+#   0.3.1- 2024-02-01
 #
 
 KUBECTL=$(which kubectl)
@@ -75,6 +75,13 @@ function connect() {
     fi
 }
 
+# 
+function get_pod_to_connect() {
+	pods $1
+	echo ""
+	read -p "Choose a pod to connect to: " current_pod
+}
+
 connected=""
 command="exec"
 current_namespace=""
@@ -90,9 +97,7 @@ while true; do
 			namespaces
     		read -p "Choose a namespace: " current_namespace
     	elif [ "$current_pod" == "" ] ; then
-			pods $current_namespace
-			echo ""
-    		read -p "Choose a pod to connect to: " current_pod
+			get_pod_to_connect $current_namespace
     	else
     		if [ "$connected" == "" ]; then
     			connect $current_namespace $current_pod    		
@@ -110,11 +115,23 @@ while true; do
             ;;
         "logs")
 			command="logs"
-			connect $2 $3
+			if [ -n "$2" ] && [ -n "$3" ] ; then
+				connect $2 $3
+			else
+				current_namespace=$2
+				get_pod_to_connect $current_namespace
+				connect $current_namespace $current_pod
+			fi
             ;;
         "sh")
 			command="exec"
-			connect $2 $3
+			if [ -n "$2" ] && [ -n "$3" ] ; then
+				connect $2 $3
+			else
+				current_namespace=$2
+				get_pod_to_connect $current_namespace
+				connect $current_namespace $current_pod
+			fi
             ;;
         *)
             echo "Unknown command: $command. Please provide a valid command (\`podconnect -h\` for more info)"
