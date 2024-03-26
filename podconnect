@@ -24,10 +24,11 @@
 #   This script is licensed under the GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007 license.
 #
 # Version:
-#   0.3.1- 2024-02-01
+#   0.4 - 2024-03-26
 #
 
 KUBECTL=$(which kubectl)
+VERSION="0.4 (2024-03-26)"
 
 # Namespaces list
 function namespaces() {
@@ -52,6 +53,7 @@ function connect() {
 	if [ -n "$2" ] ; then
     	pods_num=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}' | grep -c $2)
 	fi
+
     if [ -n "$pods_num" ] && [ $pods_num -eq 1 ]; then 
     	current_pod=$($KUBECTL get pods --namespace "$1" | awk -F " " 'NR>1 {print $1}' | grep $2)
     	
@@ -75,7 +77,7 @@ function connect() {
     fi
 }
 
-# 
+# Get available pods matching the search string
 function get_pod_to_connect() {
 	pods $1
 	echo ""
@@ -106,40 +108,47 @@ while true; do
     		fi 
     	fi
     else
+    	# Command-line with params
     	cmd=$1
+		current_namespace=$2
+		current_pod=$3
 
-    case "$cmd" in
-        "-h" | "--help")
-            echo "PodConnect - Easily connect to your cluster Pods\n"
-            echo "usage: podconnect [logs|sh] [<namespace>] [<pod:pattern*>]"
-            ;;
-        "logs")
-			command="logs"
-			if [ -n "$2" ] && [ -n "$3" ] ; then
-				connect $2 $3
-			else
-				current_namespace=$2
+		# Simple options
+	    case "$cmd" in
+	        "-v" | "--version")
+	            echo "PodConnect - Version ${VERSION}\n"
+	            exit 0
+	            ;;
+	        "-h" | "--help")
+	            echo "PodConnect - Easily connect to your cluster Pods\n"
+	            echo "usage: podconnect [logs|sh] [<namespace>] [<pod:pattern*>]"
+	            exit 0
+	            ;;
+	        "logs")
+				command="logs"
+	            ;;
+	        "sh")
+				command="exec"
+	            ;;
+	        *)
+	            echo "Unknown command. Please provide a valid command (\`podconnect -h\` for more info)"
+	            exit 1
+	            ;;
+	    esac
+
+		while [ "$current_namespace" == "" ] || [ "$current_pod" == "" ] || [ "$connected" = "" ] ; do
+			if [ "$current_namespace" == "" ] ; then 
+				namespaces
+	    		read -p "Choose a namespace: " current_namespace
+	    	elif [ "$current_pod" == "" ] ; then
 				get_pod_to_connect $current_namespace
 				connect $current_namespace $current_pod
-			fi
-            ;;
-        "sh")
-			command="exec"
-			if [ -n "$2" ] && [ -n "$3" ] ; then
-				connect $2 $3
-			else
-				current_namespace=$2
-				get_pod_to_connect $current_namespace
-				connect $current_namespace $current_pod
-			fi
-            ;;
-        *)
-            echo "Unknown command: $command. Please provide a valid command (\`podconnect -h\` for more info)"
-            exit 1
-            ;;
-    esac
+	    	else
+    			connect $current_namespace $current_pod    		
+	    	fi
+		done
 
-    exit 0
+	    exit 0
 	fi
 done
 
